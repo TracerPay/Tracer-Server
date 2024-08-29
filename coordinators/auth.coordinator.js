@@ -1,0 +1,35 @@
+// [efd]/coordinators/auth.coordinator.js
+import bcrypt from 'bcryptjs';
+import AuthM from '../models/auth.model.js';
+import User from '../classes/user.class.js';
+
+
+export default class AuthCoordinator {
+
+    static loginUser = async (username, password) => {
+        const user = await AuthM.findUserByUsername(username);
+        if (!user) throw new Error('User not found');
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) throw new Error('Invalid credentials');
+
+        return user;
+    }
+
+    static addUser = async (userData) => {
+        try {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(userData.password, salt);
+        const newUser = new User(
+            userData.username,
+            hashedPassword
+        );
+        const result = await AuthM.addUser(newUser);
+        return result;
+        } catch (error) {
+            console.error('Error creating user: ' + error.message);
+            return error;
+        }
+    }
+};
+
