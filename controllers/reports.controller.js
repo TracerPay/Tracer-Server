@@ -1,9 +1,36 @@
 import ReportsCoor from '../coordinators/reports.coordinator.js';
 
 export default class ReportsCon {
+  static getReport = async (req, res, next) => {
+    try {
+      const report = await ReportsCoor.getReport(req.params.reportID);
+      if (!report) {
+        res.status(404).json({ message: 'Report not found' });
+      } else {
+        res.status(200).json(report);
+      };
+    } catch (error) {
+      next(error);
+    };
+  }
+
   static getReports = async (req, res, next) => {
     try {
-      const reports = await ReportsCoor.getReports();
+      console.log(req.params.organizationID, req.params.type);
+      const reports = await ReportsCoor.getReports(req.params.organizationID, req.params.type);
+      if (!reports) {
+        res.status(404).json({ message: 'No reports found' });
+      } else {
+        res.status(200).json(reports);
+      };
+    } catch (error) {
+      next(error);
+    };
+  };
+
+  static getAllReports = async (req, res, next) => {
+    try {
+      const reports = await ReportsCoor.getAllReports(req.params.organizationID);
       if (!reports) {
         res.status(404).json({ message: 'No reports found' });
       } else {
@@ -25,9 +52,10 @@ export default class ReportsCon {
       }
 
       const reportPromises = [];
+      console.log(req.params.organizationID);
 
       if (files.acceptBlueFile) {
-        reportPromises.push(ReportsCoor.createReport('accept.blue', files.acceptBlueFile[0].path));
+        reportPromises.push(ReportsCoor.createReport(req.params.organizationID, 'accept.blue', files.acceptBlueFile[0].path));
       }
 
       if (files.paayFile) {

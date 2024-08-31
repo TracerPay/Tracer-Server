@@ -21,6 +21,10 @@ export default class AuthCoordinator {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(userData.password, salt);
         const newUser = new User(
+            userData.organization,
+            userData.fName,
+            userData.lName,
+            userData.email,
             userData.username,
             hashedPassword
         );

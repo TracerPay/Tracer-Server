@@ -9,7 +9,7 @@ export const isAdmin = (req, res, next) => {
 
     try {
         // Verify the token
-        const decodedToken = jwt.verify(token, process.env['JWT_SECRET']);
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
         // Check if the decoded token has the isAdmin flag set to true
         if (!decodedToken.isAdmin) {
