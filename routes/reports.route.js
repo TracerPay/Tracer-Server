@@ -3,7 +3,11 @@ import ReportsCon from '../controllers/reports.controller.js';
 import multer from 'multer';
 
 const reportR = express.Router();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // Adjust as necessary
+});
+
 
 
 reportR.post(

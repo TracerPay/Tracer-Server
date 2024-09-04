@@ -1,10 +1,9 @@
-import fs from 'fs';
-import csv from 'csv-parser';
+import ExcelJS from 'exceljs';
+import { PassThrough } from 'stream';
 import ReportsM from '../models/reports.model.js';
 import Report from '../classes/report.class.js';
 import ARRow from '../classes/arRow.class.js';
-
-
+import csv from 'csv-parser';
 
 export default class ReportsCoor {
   static getReport = async (reportID) => {
@@ -41,7 +40,7 @@ export default class ReportsCoor {
         'Setup Fee ISO': { lineItemName: 'Merchant Setup', lineItemQuantity: 1 },
         'Monthly Gateway Fee ISO': { lineItemName: 'Merchant Monthly', lineItemQuantity: 1 },
       };
-  
+
       csvData.forEach(async row => {
         Object.keys(row).forEach(async key => {
           if (keyMappings[key]) {
@@ -50,7 +49,7 @@ export default class ReportsCoor {
             const newARRow = new ARRow(
               row['Name'],
               row['Agent Id'],
-              await ReportsM.invoiceNum(row['Name'], processor, type), // Pass necessary parameters
+              await ReportsM.invoiceNum(organizationID, type) + 1, // Pass necessary parameters
               row['Month'],
               lineItemName,
               lineItemQuantity,
@@ -60,13 +59,13 @@ export default class ReportsCoor {
             arData.push(newARRow);
           }
         });
-  
+
         const transactionCount = parseFloat(row['Transaction Count']);
         const transactionFeeAmount = (transactionCount * 0.2).toFixed(2); // Ensure two decimal places
         const transactionFeeRow = new ARRow(
           row['Name'],
           row['Agent Id'],
-          await ReportsM.invoiceNum(row['Name'], processor, type), // Pass necessary parameters
+          await ReportsM.invoiceNum(organizationID, type), // Pass necessary parameters
           row['Month'],
           'TracerPay Transaction Fee',
           transactionCount,
@@ -75,7 +74,7 @@ export default class ReportsCoor {
         );
         arData.push(transactionFeeRow);
       });
-  
+
       const arReport = new Report(
         organizationID,
         processor,
@@ -83,47 +82,56 @@ export default class ReportsCoor {
         csvData[0]['Month'], // Assuming all rows have the same month
         arData
       );
-  
+      delete arReport.processor; // Remove the processor from the AR report
       return await ReportsM.createReport(arReport);
     } catch (error) {
       throw new Error('Error building Bill Report: ' + error.message);
     }
-  }
-  
+  };
 
-  static createReport = async (organizationID, processor, filePath) => {
+  static updateBillReport = async (arReport, csvData) => {
     try {
-      const csvData = await this.parseCSV(filePath);
+      csvData.forEach(async row => {
+        Object.keys(row).forEach(async key => {
+          const newARRow = new ARRow(
+            row[1],
+            row[0],
+            await ReportsM.invoiceNum(arReport.organizationID, 'ar') + 1, // Pass necessary parameters
+            arReport.month,
+            'Paay Transaction Fee',
+            row[2],
+            0.2, // Ensure two decimal places
+            row[4] * 2  // Ensure two decimal places
+          );
+          arReport.reportData.push(newARRow);
+        });
+      });
+      return await ReportsM.updateReport(arReport.reportID, arReport);
+
+    } catch (error) {
+      throw new Error('Error updating Bill Report: ' + error.message);
+    }
+  };
+
+  static createReport = async (organizationID, processor, fileBuffer, mimetype, arReport) => {
+    try {
+      let csvData;
+      if (mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        csvData = await this.parseXLSX(fileBuffer); // Parse the XLSX data directly from the buffer
+      } else if (mimetype === 'text/csv' || mimetype === 'application/csv') {
+        csvData = await this.parseCSV(fileBuffer); // Parse the CSV data directly from the buffer
+      } else {
+        throw new Error('Unsupported file type: ' + mimetype);
+      }
+
+      let report;
       let type;
       let formattedMonthYear;
-      let billingReport;
-
-      if (!csvData[0].Month) {
-        type = 'Merchant Report';
-        const currentDate = new Date();
-        let monthIndex = currentDate.getMonth(); // Get the current month (0-11)
-        let year = currentDate.getFullYear(); // Get the current year
-
-        if (monthIndex === 0) { // If the current month is January (0)
-          monthIndex = 11; // Set to December of the previous year
-          year -= 1; // Adjust the year to the previous year
-        } else {
-          monthIndex -= 1; // Simply go back one month
-        }
-
-        const monthNames = [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December"
-        ];
-
-        const month = monthNames[monthIndex]; // Get the full month name
-        formattedMonthYear = `${month} ${year}`; // Format as "July 2024"
-
-      } else {
-        type = 'billing';
-        formattedMonthYear = csvData[0].Month; // Assuming Month is already formatted in the CSV
-        billingReport = await this.buildBillReport(organizationID, processor, type, csvData);
+      let billReport;
+      if (!csvData.length) {
+        throw new Error('Parsed data is empty. Please check the input file.');
       }
+
 
       // Check if a report already exists for this organization, processor, type, and month/year
       const reportExists = await ReportsM.reportExists(organizationID, processor, type, formattedMonthYear);
@@ -131,34 +139,119 @@ export default class ReportsCoor {
         throw new Error(`A ${organizationID} ${type} for ${formattedMonthYear} already exists.`);
       }
 
-      const report = new Report(
-        organizationID,
-        processor,
-        type,
-        formattedMonthYear,
-        csvData
-      );
-      const originalReport = await ReportsM.createReport(report);
-      return [originalReport, billingReport];
-    } catch (error) {
-      throw new Error('Error creating report: ' + error.message);
-    }
-  };
+      if (!csvData[0].Month && processor === 'PAAY') {
+        type = 'billing';
+        let rowIndex = 0;
+        csvData.forEach(async row => {
+          console.log(row);
+          if (!row.MID) {
+            delete csvData[rowIndex];
+            csvData.pop();
+          } /*else {
+            const total = csvData[rowIndex].total.result;
+            csvData[rowIndex].total = total;
+          };*/
+          rowIndex++;
+        });
+        console.log(csvData);
+          billReport = await this.updateBillReport(arReport, csvData);
+          report = new Report(
+            organizationID,
+            processor,
+            type,
+            arReport.month,
+            csvData
+          );
+        } else if (!csvData[0].Month) {
+          type = 'Merchant Report';
+          const currentDate = new Date();
+          let monthIndex = currentDate.getMonth(); // Get the current month (0-11)
+          let year = currentDate.getFullYear(); // Get the current year
 
-    static parseCSV = (filePath) => {
+          if (monthIndex === 0) { // If the current month is January (0)
+            monthIndex = 11; // Set to December of the previous year
+            year -= 1; // Adjust the year to the previous year
+          } else {
+            monthIndex -= 1; // Simply go back one month
+          }
+
+          const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+          ];
+
+          const month = monthNames[monthIndex]; // Get the full month name
+          formattedMonthYear = `${month} ${year}`; // Format as "July 2024"
+
+        } else {
+          type = 'billing';
+          formattedMonthYear = csvData[0].Month; // Assuming Month is already formatted in the CSV
+          billReport = await this.buildBillReport(organizationID, processor, type, csvData);
+
+          report = new Report(
+            organizationID,
+            processor,
+            type,
+            formattedMonthYear,
+            csvData
+          );
+        }
+
+        const originalReport = await ReportsM.createReport(report);
+        return [
+          {
+            processor,
+            originalReport
+          },
+          {
+            processor,
+            billReport
+          }];
+      } catch (error) {
+        throw new Error('Error creating report: ' + error.message);
+      }
+    };
+
+  static parseCSV = (buffer) => {
     return new Promise((resolve, reject) => {
       const results = [];
-      fs.createReadStream(filePath)
+      const bufferStream = new PassThrough();
+      bufferStream.end(buffer);
+
+      bufferStream
         .pipe(csv())
         .on('data', (data) => results.push(data))
         .on('end', () => {
-          fs.unlinkSync(filePath); // Clean up the uploaded file
           resolve(results);
         })
         .on('error', (err) => {
-          reject(new Error(`Error parsing CSV file: ${err.message}`));
+          reject(new Error(`Error parsing CSV data: ${err.message}`));
         });
     });
+  };
+
+  static parseXLSX = async (fileBuffer) => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(fileBuffer); // Load from the buffer directly
+
+      const sheet = workbook.getWorksheet(1); // Assuming you want the first sheet
+
+      const jsonData = [];
+
+      sheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header row if needed
+        const rowData = {};
+        row.eachCell((cell, colNumber) => {
+          rowData[sheet.getRow(1).getCell(colNumber).value] = cell.value; // Assuming first row contains headers
+        });
+        jsonData.push(rowData);
+      });
+      return jsonData; // Return JSON data instead of a CSV file path
+    } catch (error) {
+      console.error('Error parsing XLSX file:', error.message);
+      throw new Error('Error parsing XLSX file: ' + error.message);
+    }
   };
 
 

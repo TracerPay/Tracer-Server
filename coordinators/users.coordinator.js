@@ -23,8 +23,8 @@ export default class UsersCoordinator {
                 organization,
                 user.fName,
                 user.lName,
-                username,   // Use generated username
                 user.email,
+                username,   // Use generated username
                 hashedPassword
             );
             newUser.organizationID = organizationID;
@@ -63,7 +63,7 @@ export default class UsersCoordinator {
     static updateUser = async (organizationID, username, update) => {
         try {
             const user = await UsersModel.findUserByUsername(organizationID, username);
-            updatedUser = new User(
+            const updatedUser = new User(
                 user.organizationID,
                 user.fName,
                 user.lName,
