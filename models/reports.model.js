@@ -54,13 +54,13 @@ export default class ReportsM {
     }
   };
 
-  static invoiceNum = async (organizationID, type) => {
+  static invoiceNum = async (organizationID) => {
     try {
       // Fetch the current invoice number from a separate collection
       const reports = await db.dbReports().find(
         { 
           organizationID,
-          type
+          type: 'ar'
         }
       ).toArray();
       let invoiceNum = 0;
