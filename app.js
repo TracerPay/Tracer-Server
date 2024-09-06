@@ -18,7 +18,7 @@ const port = 3001;
 // setup middleware
 app.use(express.json());
 app.use(cors({
-    origin: "http://localhost:3000"
+    origin: ["https://tracer.crittercodes.com", "http://localhost:3000"]
 }));
 
 //set up routes

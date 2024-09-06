@@ -81,4 +81,13 @@ export default class ReportsM {
       throw new Error('Error updating report in the DB: ' + error.message);
     }
   }
+
+  static deleteReport = async (reportID) => {
+    try {
+      const report = await db.dbReports().deleteOne({ reportID });
+      return report;
+    } catch (error) {
+      throw new Error('Error deleting report in the DB: ' + error.message);
+    }
+  };
 }

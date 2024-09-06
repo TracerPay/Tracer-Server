@@ -269,6 +269,12 @@ export default class ReportsCoor {
     }
   };
 
-
+  static deleteReport = async (reportID) => {
+    try {
+      return await ReportsM.deleteReport(reportID);
+    } catch (error) {
+      throw new Error('Error deleting report: ' + error.message);
+    }
+  };
 
 }

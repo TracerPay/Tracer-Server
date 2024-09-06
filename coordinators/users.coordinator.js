@@ -28,6 +28,7 @@ export default class UsersCoordinator {
                 hashedPassword
             );
             newUser.organizationID = organizationID;
+            
             console.log(newUser);
             // Save the user to the database
             const result = await UsersModel.addUser(newUser);
