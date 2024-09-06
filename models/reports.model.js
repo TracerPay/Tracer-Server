@@ -14,6 +14,7 @@ export default class ReportsM {
   static getReports = async (organizationID, type) => {
     try {
       const reports = await db.dbReports().find({ organizationID, type}, { projection: Constants.DEFAULT_PROJECTION }).toArray();
+      console.log(reports);
       return reports;
     } catch (error) {
       throw new Error('Error getting reports from DB: ' + error.message);
@@ -37,6 +38,7 @@ export default class ReportsM {
         type,
         month
       });
+      console.log(existingReport);
       return !!existingReport; // Return true if a report exists, false otherwise
     } catch (error) {
       throw new Error('Error checking existing report in the DB: ' + error.message);
@@ -45,49 +47,26 @@ export default class ReportsM {
 
   static createReport = async (reportData) => {
     try {
-      const reportID = reportData.reportID;
-      await db.dbReports().insertOne(reportData);
-      const report = await db.dbReports().findOne({ reportID }, { projection: Constants.DEFAULT_PROJECTION });
+      const report = await db.dbReports().insertOne(reportData);
       return report;
     } catch (error) {
       throw new Error('Error creating report in the DB: ' + error.message);
     }
   };
 
-  static invoiceNum = async (organizationID) => {
+  static invoiceNum = async (organizationID, processor, type) => {
     try {
       // Fetch the current invoice number from a separate collection
-      const reports = await db.dbReports().find(
+      const invoices = await db.dbReports().find(
         { 
           organizationID,
-          type: 'ar'
+          processor,
+          type
         }
       ).toArray();
-      let invoiceNum = 0;
-      reports.forEach(report => {
-        invoiceNum += report.reportData.length;
-      } )
-      return invoiceNum;
+      return invoices.length + 1;
     } catch (error) {
       throw new Error('Error generating invoice number: ' + error.message);
-    }
-  };
-
-  static updateReport = async (reportID, reportData) => {
-    try {
-      const report = await db.dbReports().replaceOne({ reportID }, reportData);
-      return report;
-    } catch (error) {
-      throw new Error('Error updating report in the DB: ' + error.message);
-    }
-  }
-
-  static deleteReport = async (reportID) => {
-    try {
-      const report = await db.dbReports().deleteOne({ reportID });
-      return report;
-    } catch (error) {
-      throw new Error('Error deleting report in the DB: ' + error.message);
     }
   };
 }

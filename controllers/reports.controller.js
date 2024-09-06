@@ -16,6 +16,7 @@ export default class ReportsCon {
 
   static getReports = async (req, res, next) => {
     try {
+      console.log(req.params.organizationID, req.params.type);
       const reports = await ReportsCoor.getReports(req.params.organizationID, req.params.type);
       if (!reports) {
         res.status(404).json({ message: 'No reports found' });
@@ -43,6 +44,7 @@ export default class ReportsCon {
   static createReports = async (req, res, next) => {
     try {
       const files = req.files; // Object containing files for each field
+      const processors = req.body.processor; // Array of processors corresponding to files
 
       if (!files || (!files.acceptBlueFile && !files.paayFile)) {
         res.status(400).json({ message: 'No files uploaded' });
@@ -50,23 +52,14 @@ export default class ReportsCon {
       }
 
       const reportPromises = [];
-      const organizationID = req.params.organizationID; // Get the organization ID from the request parameters
+      console.log(req.params.organizationID);
+
       if (files.acceptBlueFile) {
-        const fileBuffer = files.acceptBlueFile[0].buffer;
-        const mimetype = files.acceptBlueFile[0].mimetype;
-        const promises = await ReportsCoor.createReport(organizationID, 'accept.blue', fileBuffer, mimetype, {});
-        promises.forEach(promise => reportPromises.push(promise));
+        reportPromises.push(ReportsCoor.createReport(req.params.organizationID, 'accept.blue', files.acceptBlueFile[0].path));
       }
 
       if (files.paayFile) {
-        const promises = await ReportsCoor.createReport(
-          organizationID,
-          'PAAY',
-          files.paayFile[0].buffer,
-          files.paayFile[0].mimetype,
-          reportPromises[1].billReport
-        );
-        promises.forEach(promise => reportPromises.push(promise));
+        reportPromises.push(ReportsCoor.createReport('PAAY', files.paayFile[0].path));
       }
 
       const reports = await Promise.all(reportPromises);
@@ -74,24 +67,9 @@ export default class ReportsCon {
       res.status(200).json({ message: 'Reports created successfully', reports });
     } catch (error) {
       next(error);
-    }
-  };
-
-  static deleteReport = async (req, res, next) => {
-    try {
-      const report = await ReportsCoor.deleteReport(req.params.reportID);
-      if (!report) {
-        res.status(404).json({ message: 'Report not deleted' });
-      } else {
-        res.status(200).json(report);
-      };
-    } catch (error) {
-      next(error);
     };
-
-
   };
-};
+}
 
 
 /*
@@ -146,4 +124,3 @@ export default class ReportsCon {
       next(error);
     };
   };*/
-
