@@ -51,6 +51,15 @@ export default class UsersModel {
         }
     };
 
+    static getUser = async (organizationID, username) => {
+        try {
+            return await db.dbUsers().findOne({ organizationID, username }, { projection: Constants.DEFAULT_PROJECTION });
+        } catch (error) {
+            console.error('Error getting user in DB: ', error);
+            return error;
+        }
+    };
+
     static getUsers = async (organizationID) => {
         try {
             return await db.dbUsers().find({ organizationID }, { projection: Constants.DEFAULT_PROJECTION }).toArray();
@@ -81,22 +90,48 @@ export default class UsersModel {
                 };
             }
     
-            // Check if the username or email is being updated and perform the duplicate check
+            // Check if the username or email is being updated
             const isUsernameChanged = update.username && update.username !== currentUser.username;
             const isEmailChanged = update.email && update.email !== currentUser.email;
     
-            if (isUsernameChanged || isEmailChanged) {
-                const dc = await dupeCheck(update.email || currentUser.email, update.username || currentUser.username);
-                if (dc.isDupe) {
-                    return dc;
+            // Perform the duplicate check only for the fields being changed
+            if (isUsernameChanged) {
+                const usernameCheck = await dupeCheck(null, update.username);
+                if (usernameCheck.isDupe) {
+                    return {
+                        success: false,
+                        message: 'Username is already taken'
+                    };
+                }
+            }
+    
+            if (isEmailChanged) {
+                const emailCheck = await dupeCheck(update.email, null);
+                if (emailCheck.isDupe) {
+                    return {
+                        success: false,
+                        message: 'Email is already in use'
+                    };
                 }
             }
     
             // Perform the update
-            return await db.dbUsers().updateOne(
+            const result = await db.dbUsers().updateOne(
                 { organizationID, username },
                 { $set: update }
             );
+    
+            if (result.modifiedCount === 0) {
+                return {
+                    success: false,
+                    message: 'No changes made'
+                };
+            }
+    
+            return {
+                success: true,
+                message: 'User updated successfully'
+            };
         } catch (error) {
             console.error('Error updating user in DB: ', error);
             return {
@@ -105,6 +140,7 @@ export default class UsersModel {
             };
         }
     };
+    
     
 
     static deleteUser = async (organizationID, username) => {

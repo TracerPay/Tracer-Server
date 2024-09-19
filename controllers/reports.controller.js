@@ -42,40 +42,54 @@ export default class ReportsCon {
 
   static createReports = async (req, res, next) => {
     try {
+      console.log("Request received:", req.body); // Log the request body
+      console.log("Files received:", req.files); // Log the files received from the front-end
       const files = req.files; // Object containing files for each field
-
+  
       if (!files || (!files.acceptBlueFile && !files.paayFile)) {
+        console.log("No files uploaded"); // Log if no files are uploaded
         res.status(400).json({ message: 'No files uploaded' });
         return;
       }
-
+  
       const reportPromises = [];
       const organizationID = req.params.organizationID; // Get the organization ID from the request parameters
+      console.log("Organization ID:", organizationID); // Log the organization ID
+  
       if (files.acceptBlueFile) {
         const fileBuffer = files.acceptBlueFile[0].buffer;
         const mimetype = files.acceptBlueFile[0].mimetype;
+        console.log("Processing acceptBlueFile with mimetype:", mimetype); // Log file info
+  
+        // Create report for 'accept.blue'
         const promises = await ReportsCoor.createReport(organizationID, 'accept.blue', fileBuffer, mimetype, {});
         promises.forEach(promise => reportPromises.push(promise));
       }
-
+  
       if (files.paayFile) {
+        console.log("Processing paayFile"); // Log the processing of PAAY file
+        // Create report for 'PAAY'
         const promises = await ReportsCoor.createReport(
           organizationID,
           'PAAY',
           files.paayFile[0].buffer,
           files.paayFile[0].mimetype,
-          reportPromises[1].billReport
+          reportPromises[1] ? reportPromises[1].billReport : {} // Ensure reportPromises has valid data before access
         );
         promises.forEach(promise => reportPromises.push(promise));
       }
-
+  
+      console.log("Report promises:", reportPromises); // Log the report promises before resolving
       const reports = await Promise.all(reportPromises);
-
+  
+      console.log("Reports created successfully:", reports); // Log the final created reports
       res.status(200).json({ message: 'Reports created successfully', reports });
     } catch (error) {
+      console.error("Error in createReports:", error.message); // Log the error
       next(error);
     }
   };
+  
 
   static deleteReport = async (req, res, next) => {
     try {
