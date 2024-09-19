@@ -28,7 +28,8 @@ export default class UsersCoordinator {
                 hashedPassword
             );
             newUser.organizationID = organizationID;
-            
+            newUser.status = 'active';
+
             console.log(newUser);
             // Save the user to the database
             const result = await UsersModel.addUser(newUser);
@@ -45,7 +46,7 @@ export default class UsersCoordinator {
 
     static findUserByUsername = async (organizationID, username) => {
         try {
-            const user = await UsersModel.findUserByUsername(username);
+            const user = await UsersModel.getUser(organizationID, username);
             return user;
         } catch (error) {
             throw new Error('Error finding user by username: ' + error.message);
@@ -65,12 +66,21 @@ export default class UsersCoordinator {
         try {
             const user = await UsersModel.findUserByUsername(organizationID, username);
             const updatedUser = new User(
-                user.organizationID,
+                user.organization,
                 user.fName,
                 user.lName,
                 user.username,
                 user.password
             );
+            updatedUser.organizationID = organizationID;
+            // Preserve the existing password if not being updated
+            if (update.password) {
+                const salt = await bcrypt.genSalt(10);
+                const hashedPassword = await bcrypt.hash(update.password, salt);
+                update.password = hashedPassword;
+            } else {
+                update.password = user.password; // Keep the existing password if not updating
+            }
             updatedUser.updateUser(update);
             const result = await UsersModel.updateUser(organizationID, username, updatedUser);
             return result;

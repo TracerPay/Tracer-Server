@@ -13,6 +13,8 @@ export default class AuthCoordinator {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) throw new Error('Invalid credentials');
 
+        if (user.status !== 'active') throw new Error('User is not active, contact support to activate your account');
+
         return user;
     }
 

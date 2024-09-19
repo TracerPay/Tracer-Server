@@ -10,6 +10,7 @@ export default class User {
     this.username = username;
     this.password = password;
     this.isAdmin = true;
+    this.status = 'pending';
   }
 
   updateUser(data) {

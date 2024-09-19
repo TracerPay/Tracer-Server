@@ -84,6 +84,7 @@ export default class ReportsCoor {
         csvData[0]['Month'], // Assuming all rows have the same month
         arData
       );
+      //console.log("Created report object:", arReport);
       delete arReport.processor; // Remove the processor from the AR report
       return await ReportsM.createReport(arReport);
     } catch (error) {
@@ -122,9 +123,12 @@ export default class ReportsCoor {
   static createReport = async (organizationID, processor, fileBuffer, mimetype, arReport) => {
     try {
       let csvData;
+      
       if (mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        console.log("Parsing XLSX file");
         csvData = await this.parseXLSX(fileBuffer); // Parse the XLSX data directly from the buffer
       } else if (mimetype === 'text/csv' || mimetype === 'application/csv') {
+        console.log("Parsing CSV file");
         csvData = await this.parseCSV(fileBuffer); // Parse the CSV data directly from the buffer
       } else {
         throw new Error('Unsupported file type: ' + mimetype);
@@ -146,16 +150,15 @@ export default class ReportsCoor {
       }
 
       if (!csvData[0].Month && processor === 'PAAY') {
+        console.log("PAAY Report");
         type = 'billing';
         let rowIndex = 0;
         csvData.forEach(row => {
-          /*
-            const total = csvData[rowIndex].total.result;
-            csvData[rowIndex].total = total;
-        */
+            const total = row.Total.result;
+            csvData[rowIndex].Total = total;
           rowIndex++;
         });
-        console.log(csvData.length);
+        console.log(csvData);
         billReport = await this.updateBillReport(arReport, csvData);
         report = new Report(
           organizationID,
@@ -164,7 +167,8 @@ export default class ReportsCoor {
           arReport.month,
           csvData
         );
-      } else if (!csvData[0].Month) {
+        //console.log("Created report object:", report);
+      } /* else if (!csvData[0].Month) {
         type = 'Merchant Report';
         const currentDate = new Date();
         let monthIndex = currentDate.getMonth(); // Get the current month (0-11)
@@ -185,11 +189,11 @@ export default class ReportsCoor {
         const month = monthNames[monthIndex]; // Get the full month name
         formattedMonthYear = `${month} ${year}`; // Format as "July 2024"
 
-      } else {
+      }*/ else {
+        console.log("Accept.Blue Report");
         type = 'billing';
         formattedMonthYear = csvData[0].Month; // Assuming Month is already formatted in the CSV
         billReport = await this.buildBillReport(organizationID, processor, type, csvData);
-
         report = new Report(
           organizationID,
           processor,
@@ -197,8 +201,9 @@ export default class ReportsCoor {
           formattedMonthYear,
           csvData
         );
+        //console.log("Created report object:", report);
       }
-
+      console.log('sending report to model');
       const originalReport = await ReportsM.createReport(report);
       return [
         {
@@ -276,5 +281,4 @@ export default class ReportsCoor {
       throw new Error('Error deleting report: ' + error.message);
     }
   };
-
 }
