@@ -73,6 +73,7 @@ export default class UsersCoordinator {
                 user.password
             );
             updatedUser.organizationID = organizationID;
+            updatedUser.status = user.status;
             // Preserve the existing password if not being updated
             if (update.password) {
                 const salt = await bcrypt.genSalt(10);
