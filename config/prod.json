@@ -1,0 +1,11 @@
+{
+    "mongo": {
+        "url": "mongodb+srv://tracer-server:Fall2024@tracer.zwajj.mongodb.net/?retryWrites=true&w=majority&appName=Tracer",
+        "database": "Tracer",
+        "minPoolSize": 3,
+        "maxPoolSize": 10
+    },
+    "cors":{
+        "origin": "https://app.tracerpos.com"
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "mongo": {
+        "url": "mongodb+srv://jacobaengel55:Lafiesta16@crittercodes.pw8j4mp.mongodb.net/?retryWrites=true&w=majority&appName=CritterCodesac",
+        "database": "Tracer",
+        "minPoolSize": 3,
+        "maxPoolSize": 10
+    },
+    "cors": {
+        "origin": ["http://localhost:3000", "https://localhost:3000"],
+        "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+        "preflightContinue": false,
+        "optionsSuccessStatus": 204
+    }
+}

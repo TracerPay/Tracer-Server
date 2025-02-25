@@ -1,40 +1,43 @@
-// import modules
+// import packages
 import express from 'express';
-import { db } from './lib/database.lib.js';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import config from 'config';
+// import routes
+import AgentsRoute from './routes/agents.route.js';
+import ReportsV2Route from './routes/reportsV2.route.js';
 import reportR from './routes/reports.route.js';
 import authR from './routes/auth.route.js';
 import userRouter from './routes/users.route.js';
+// import middleware
 import { isAdmin } from './middleware/admin.middleware.js';
-import cors from 'cors';
-import dotenv from 'dotenv';
+// import db
+import { db } from './lib/database.lib.js';
+import invoicesRoute from './routes/invoices.route.js';
+import DashboardRoute from './routes/dashboard.route.js';
 
 // dotenv config
 dotenv.config();
 
 // setupe express
 const app = express();
-const port = 3001;
+const port = 3002;
 
 // setup middleware
 app.use(express.json());
-app.use(cors({
-    origin: ["https://tracer.crittercodes.com", "http://localhost:3000"]
-}));
+app.use(cors(config.get('cors')));
 
 //set up routes
-app.use('/api/v1/reports', isAdmin, reportR);
-app.use('/api/v1/auth', authR);
-app.use('/api/v1/users', isAdmin, userRouter);
+app.use('/api/v1/reports', reportR);
+app.use('/api/v2/reports', ReportsV2Route);
+app.use('/api/v2/auth', authR);
+app.use('/api/v2/users', isAdmin, userRouter);
+app.use('/api/v2/agents', isAdmin, AgentsRoute);
+app.use('/api/v2/invoices', isAdmin, invoicesRoute);
+app.use('/api/v2/dashboard', DashboardRoute);
 
 // setup db
-const config = {
-  url: process.env.MONGO_URL,
-  database: 'Tracer',
-  minPoolSize: 3,
-  maxPoolSize: 10,
-};
-
-db.init(config);
+db.init(config.get('mongo'));
 
 // start server
 app.listen(port, () => {
